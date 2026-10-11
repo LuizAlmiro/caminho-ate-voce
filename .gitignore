@@ -1,3 +1,6 @@
 .claude/
 fotos/
 caminho-ate-voce.html
+
+.vercel
+.env*
