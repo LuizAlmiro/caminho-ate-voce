@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="pt-BR">
 <meta name="robots" content="noindex, nofollow">
-<meta property="og:title" content="Caminho até você">
+<meta property="og:title" content="Caminho at&eacute; voc&ecirc;">
 <meta property="og:description" content="Um joguinho feito pra Julia">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -74,10 +74,10 @@ body{height:100%;margin:0;background:var(--cyan-deep);color:var(--paper);font-fa
 .btn-primary{background:var(--daisy);color:var(--ink);box-shadow:0 4px 0 var(--daisy-dark),0 12px 26px rgba(5,18,48,.3)}
 .btn-primary:active{transform:translateY(3px);box-shadow:0 1px 0 var(--daisy-dark),0 6px 14px rgba(5,18,48,.3)}
 .btn-ghost{background:var(--paper);color:var(--ink);border:2px solid var(--ink)}
-#noBtn{position:relative;z-index:2;white-space:nowrap}
+#noBtn{position:relative;z-index:2;white-space:nowrap;transition:opacity .15s ease,scale .15s ease}
+#noBtn.poof{opacity:0;scale:.4;pointer-events:none}
 .btn-blue{background:var(--cyan);color:#fff;font-size:15px;padding:12px 20px}
-.btn-link{background:none;border:0;padding:6px;font:600 15px var(--f-body);color:var(--pen);text-decoration:underline;text-underline-offset:3px;cursor:pointer}
-.btn:focus-visible,.btn-link:focus-visible,.mute:focus-visible,.pick:focus-within{outline:3px solid var(--daisy);outline-offset:3px}
+.btn:focus-visible,.mute:focus-visible,.pick:focus-within{outline:3px solid var(--daisy);outline-offset:3px}
 
 /* Abertura */
 .title{width:100%;max-width:560px;display:flex;flex-direction:column;align-items:center;gap:18px;text-align:center}
@@ -257,7 +257,6 @@ body{height:100%;margin:0;background:var(--cyan-deep);color:var(--paper);font-fa
           <a class="btn btn-blue" id="waBtn" href="#" target="_blank" rel="noopener" hidden>Responder no WhatsApp</a>
         </div>
         <p class="reply-text" id="replyText" hidden></p>
-        <button class="btn-link" id="mindBtn" type="button" hidden>Mudei de ideia: sim!</button>
         <p class="ticket-sign" id="ticketSign" hidden></p>
         <span class="ticket-serial">Nº 0001 · fileira do meio</span>
       </div>
@@ -978,40 +977,38 @@ function applyTexts() {
   if (wa) { $('waBtn').href = `https://wa.me/${wa}?text=${encodeURIComponent(REPLY)}`; }
 }
 
-/* Resposta */
-const NO_LABELS = ['Tem certeza?', 'Pensa nas margaridas', 'E a pipoca?', 'Última chance'];
-let noTries = 0, noOff = { x: 0, y: 0 };
+/* Resposta: o "Não" nunca deixa ser clicado. Some e reaparece em outro canto da tela. */
+const NO_LABELS = ['Tem certeza?', 'Pensa nas margaridas', 'E a pipoca?', 'Esse botão é tímido', 'Tenta o outro', 'Não adianta', 'O sim tá ali'];
+let noTries = 0, noOff = { x: 0, y: 0 }, lastDodge = 0;
 const yesBtn = $('yesBtn'), noBtn = $('noBtn');
 function dodge() {
-  const r = noBtn.getBoundingClientRect(), ys = yesBtn.getBoundingClientRect(), m = 18;
+  const r = noBtn.getBoundingClientRect(), ys = yesBtn.getBoundingClientRect(), m = 20;
   const baseL = r.left - noOff.x, baseT = r.top - noOff.y;
-  let nx = 0, ny = 0;
-  for (let t = 0; t < 60; t++) {
-    nx = clamp(rand(-170, 170), 8 - baseL, innerWidth - 8 - r.width - baseL);
-    ny = clamp(rand(-130, 60), 8 - baseT, innerHeight - 8 - r.height - baseT);
-    const L = baseL + nx, Tp = baseT + ny;
+  const maxL = Math.max(8, innerWidth - r.width - 8), maxT = Math.max(8, innerHeight - r.height - 8);
+  let L = 8, Tp = 8;
+  for (let t = 0; t < 80; t++) {
+    L = rand(8, maxL); Tp = rand(8, maxT);
     const onYes = L < ys.right + m && L + r.width > ys.left - m && Tp < ys.bottom + m && Tp + r.height > ys.top - m;
-    if (!onYes && Math.hypot(nx - noOff.x, ny - noOff.y) > 70) break;
+    if (!onYes && Math.hypot(L - r.left, Tp - r.top) > 120) break;
   }
-  noOff = { x: nx, y: ny };
-  noBtn.style.transform = `translate(${nx}px, ${ny}px)`;
+  noOff = { x: L - baseL, y: Tp - baseT };
+  noBtn.classList.add('poof');
+  setTimeout(() => { noBtn.style.transform = `translate(${noOff.x}px, ${noOff.y}px)`; noBtn.classList.remove('poof'); }, 170);
 }
 function tryNo() {
-  noBtn.textContent = NO_LABELS[noTries]; noTries++;
-  yesBtn.style.transform = `scale(${1 + noTries * .1})`;
+  const now = performance.now();
+  if (now - lastDodge < 350) return;
+  lastDodge = now;
+  noBtn.textContent = NO_LABELS[noTries % NO_LABELS.length]; noTries++;
+  yesBtn.style.transform = `scale(${Math.min(1.6, 1 + noTries * .08)})`;
   dodge(); sfx('boop');
-  if (noTries >= NO_LABELS.length) setTimeout(() => { noBtn.textContent = 'Não, obrigada'; }, 900);
 }
-noBtn.addEventListener('pointerenter', e => { if (e.pointerType === 'mouse' && noTries < NO_LABELS.length) tryNo(); });
-noBtn.addEventListener('click', () => { if (noTries < NO_LABELS.length) { tryNo(); return; } sayNo(); });
-function sayNo() {
-  $('answerBtns').hidden = true;
-  $('answerMsg').textContent = 'Tudo bem, de verdade. Valeu por ter jogado até o fim. As margaridas continuam sendo suas.';
-  $('mindBtn').hidden = false;
-}
+noBtn.addEventListener('pointerenter', e => { if (e.pointerType === 'mouse') tryNo(); });
+noBtn.addEventListener('pointerdown', e => { e.preventDefault(); tryNo(); });
+noBtn.addEventListener('click', e => { e.preventDefault(); tryNo(); });
 function sayYes() {
   ensureAudio();
-  $('answerBtns').hidden = true; $('mindBtn').hidden = true;
+  $('answerBtns').hidden = true;
   $('stamp').hidden = false;
   $('answerMsg').textContent = 'Eba! Então está combinado. Me conta qual dia fica melhor pra você.';
   $('replyRow').hidden = false;
@@ -1019,7 +1016,6 @@ function sayYes() {
   state = 'celebrate'; stateT = 0; spawnAcc = 0; sfx('yes');
 }
 yesBtn.addEventListener('click', sayYes);
-$('mindBtn').addEventListener('click', sayYes);
 $('copyBtn').addEventListener('click', () => {
   const btn = $('copyBtn'), fallback = () => {
     const el = $('replyText'); el.textContent = REPLY; el.hidden = false;
